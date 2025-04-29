@@ -1,3 +1,9 @@
 #!/usr/bin/env bash
+set -e
 
-exit 0
+if [ -f "$1/package.json" ] && (jq -e '(.engines.bun//.bun)' "$1/package.json" >/dev/null 2>&1); then
+  echo "Bun"
+  exit 0
+else
+  exit 1
+fi
