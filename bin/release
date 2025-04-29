@@ -1,8 +1,35 @@
 #!/usr/bin/env bash
+# bin/release <build-dir>
+
+BUILD_DIR=${1:-}
+BP_DIR=$(cd "$(dirname "${0:-}")"; cd ..; pwd)
+source "$BP_DIR/lib/json.sh"
+
+# Check if package.json exists and has a start script
+if [ -f "$BUILD_DIR/package.json" ]; then
+  HAS_START_SCRIPT=$(has_script "$BUILD_DIR/package.json" "start")
+  if [ "$HAS_START_SCRIPT" == "true" ]; then
+    START_COMMAND="bun start"
+  else
+    # Default to bun run if there's an index.js or index.ts
+    if [ -f "$BUILD_DIR/index.js" ] || [ -f "$BUILD_DIR/index.ts" ]; then
+      START_COMMAND="bun run index"
+    else
+      START_COMMAND="bun --help"
+    fi
+  fi
+else
+  # Default to running index file if it exists
+  if [ -f "$BUILD_DIR/index.js" ] || [ -f "$BUILD_DIR/index.ts" ]; then
+    START_COMMAND="bun run index"
+  else
+    START_COMMAND="bun --help"
+  fi
+fi
 
 cat << EOF
 ---
 addons: []
 default_process_types:
-  web: bun start
+  web: $START_COMMAND
 EOF

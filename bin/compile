@@ -73,30 +73,35 @@ echo "Installed Bun v$(bun --version)"
 
 cd "$BUILD_DIR"
 
-# Download dependencies
-if [[ -f package.json && ! -f .skip-bun-install ]]; then
-  echo "Installing dependencies..."
-  bun install --production --frozen-lockfile || (echo "Failed to install dependencies" && exit 1)
-  echo "Pruning development dependencies..."
-  bun pm prune --production || echo "Warning: Failed to prune dependencies"
-fi
+# Only run package.json related steps if it exists
+if [ -f package.json ]; then
+  # Download dependencies
+  if [[ ! -f .skip-bun-install ]]; then
+    echo "Installing dependencies..."
+    bun install --production --frozen-lockfile || (echo "Failed to install dependencies" && exit 1)
+    echo "Pruning development dependencies..."
+    bun pm prune --production || echo "Warning: Failed to prune dependencies"
+  fi
 
-has_heroku_prebuild_script=$(has_script "package.json" "heroku-prebuild")
-if [[ "$has_heroku_prebuild_script" == "true" && ! -f .skip-bun-heroku-prebuild ]]; then
-  echo "Running Heroku prebuild script..."
-  bun run heroku-prebuild || (echo "Failed to run heroku-prebuild" && exit 1)
-fi
+  has_heroku_prebuild_script=$(has_script "package.json" "heroku-prebuild")
+  if [[ "$has_heroku_prebuild_script" == "true" && ! -f .skip-bun-heroku-prebuild ]]; then
+    echo "Running Heroku prebuild script..."
+    bun run heroku-prebuild || (echo "Failed to run heroku-prebuild" && exit 1)
+  fi
 
-has_build_script=$(has_script "package.json" "build")
-if [[ "$has_build_script" == "true" && ! -f .skip-bun-build ]]; then
-  echo "Building application..."
-  bun run build || (echo "Failed to build application" && exit 1)
-  echo "Done building application..."
-fi
+  has_build_script=$(has_script "package.json" "build")
+  if [[ "$has_build_script" == "true" && ! -f .skip-bun-build ]]; then
+    echo "Building application..."
+    bun run build || (echo "Failed to build application" && exit 1)
+    echo "Done building application..."
+  fi
 
-has_heroku_postbuild_script=$(has_script "package.json" "heroku-postbuild")
-if [[ "$has_heroku_postbuild_script" == "true" && ! -f .skip-bun-heroku-postbuild ]]; then
-  echo "Running Heroku postbuild script..."
-  bun run heroku-postbuild || (echo "Failed to run heroku-postbuild" && exit 1)
+  has_heroku_postbuild_script=$(has_script "package.json" "heroku-postbuild")
+  if [[ "$has_heroku_postbuild_script" == "true" && ! -f .skip-bun-heroku-postbuild ]]; then
+    echo "Running Heroku postbuild script..."
+    bun run heroku-postbuild || (echo "Failed to run heroku-postbuild" && exit 1)
+  fi
+else
+  echo "No package.json found. Skipping dependency installation."
 fi
 
