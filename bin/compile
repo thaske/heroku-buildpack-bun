@@ -11,6 +11,10 @@ CACHE_DIR="${2:-}"
 ENV_DIR="${3:-}"
 BP_DIR=$(cd "$(dirname "${0:-}")"; cd ..; pwd)
 
+indent() {
+  sed -u 's/^/       /'
+}
+
 ### Load dependencies
 source "$BP_DIR/lib/json.sh"
 
@@ -34,7 +38,7 @@ elif [ -f "$BUILD_DIR/runtime.txt" ]; then
   BUN_VERSION="$(cat "$BUILD_DIR/runtime.txt")"
 fi
 
-echo "Installing Bun ${BUN_VERSION:-latest}"
+echo "-----> Installing Bun ${BUN_VERSION:-latest}"
 
 if [[ -n $BUN_VERSION ]]; then
   # prepend a v to version numbers, eg 1.0.19 -> v1.0.19
@@ -51,9 +55,14 @@ mkdir -p "$BUN_DIR"
 
 # Download installer with SHA verification
 INSTALLER_PATH="$CACHE_DIR/bun-installer.sh"
-curl -fsSL --retry-connrefused --retry 3 https://bun.sh/install -o "$INSTALLER_PATH"
+echo "       Downloading Bun installer" | indent
+if ! curl -fsSL --retry-connrefused --retry 3 https://bun.sh/install -o "$INSTALLER_PATH"; then
+  echo "       Failed to download Bun installer" | indent
+  exit 1
+fi
 
 # Run the installer
+echo "       Running installer" | indent
 bash "$INSTALLER_PATH" $BUN_INSTALL_VERSION
 
 export PATH="$BUN_INSTALL/bin:$PATH"
@@ -65,11 +74,11 @@ echo 'export PATH="$HOME/.heroku/bin:$PATH"' > "$PROFILE_PATH"
 echo 'export BUN_DIR="$HOME/.bun/install/cache"' >> "$PROFILE_PATH"
 
 # Export environment variables to subsequent buildpacks
-mkdir -p "$BP_DIR/export"
 echo "export PATH=\"$BUILD_DIR/.heroku/bin:\$PATH\"" > "$BP_DIR/export"
 echo "export BUN_DIR=\"$CACHE_DIR/bun\"" >> "$BP_DIR/export"
+chmod +x "$BP_DIR/export"
 
-echo "Installed Bun v$(bun --version)"
+echo "-----> Installed Bun v$(bun --version)"
 
 cd "$BUILD_DIR"
 
@@ -77,31 +86,31 @@ cd "$BUILD_DIR"
 if [ -f package.json ]; then
   # Download dependencies
   if [[ ! -f .skip-bun-install ]]; then
-    echo "Installing dependencies..."
-    bun install --production --frozen-lockfile || (echo "Failed to install dependencies" && exit 1)
-    echo "Pruning development dependencies..."
-    bun pm prune --production || echo "Warning: Failed to prune dependencies"
+    echo "-----> Installing dependencies"
+    bun install --production --frozen-lockfile || { echo "       Failed to install dependencies" | indent; exit 1; }
+    echo "       Pruning development dependencies" | indent
+    bun pm prune --production || echo "       Warning: Failed to prune dependencies" | indent
   fi
 
   has_heroku_prebuild_script=$(has_script "package.json" "heroku-prebuild")
   if [[ "$has_heroku_prebuild_script" == "true" && ! -f .skip-bun-heroku-prebuild ]]; then
-    echo "Running Heroku prebuild script..."
-    bun run heroku-prebuild || (echo "Failed to run heroku-prebuild" && exit 1)
+    echo "-----> Running Heroku prebuild script"
+    bun run heroku-prebuild || { echo "       Failed to run heroku-prebuild" | indent; exit 1; }
   fi
 
   has_build_script=$(has_script "package.json" "build")
   if [[ "$has_build_script" == "true" && ! -f .skip-bun-build ]]; then
-    echo "Building application..."
-    bun run build || (echo "Failed to build application" && exit 1)
-    echo "Done building application..."
+    echo "-----> Building application"
+    bun run build || { echo "       Failed to build application" | indent; exit 1; }
+    echo "       Done building application" | indent
   fi
 
   has_heroku_postbuild_script=$(has_script "package.json" "heroku-postbuild")
   if [[ "$has_heroku_postbuild_script" == "true" && ! -f .skip-bun-heroku-postbuild ]]; then
-    echo "Running Heroku postbuild script..."
-    bun run heroku-postbuild || (echo "Failed to run heroku-postbuild" && exit 1)
+    echo "-----> Running Heroku postbuild script"
+    bun run heroku-postbuild || { echo "       Failed to run heroku-postbuild" | indent; exit 1; }
   fi
 else
-  echo "No package.json found. Skipping dependency installation."
+  echo "-----> No package.json found. Skipping dependency installation."
 fi
 
