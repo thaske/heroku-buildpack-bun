@@ -87,7 +87,7 @@ if [ -f package.json ]; then
   # Download dependencies
   if [[ ! -f .skip-bun-install ]]; then
     echo "-----> Installing dependencies"
-    bun install --frozen-lockfile || { echo "       Failed to install dependencies" | indent; exit 1; }
+    bun install --production --frozen-lockfile || { echo "       Failed to install dependencies" | indent; exit 1; }
   fi
 
   has_heroku_prebuild_script=$(has_script "package.json" "heroku-prebuild")
