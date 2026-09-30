@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+if [[ $1 == -ms ]]; then
+  printf '%s\n' "$FIXTURE_PLATFORM"
+else
+  /usr/bin/uname "$@"
+fi

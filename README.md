@@ -14,6 +14,8 @@ You'll either need a [`Procfile`](https://devcenter.heroku.com/articles/procfile
 
 Pin a certain Bun version such as `v1.1.20` with the `BUN_VERSION` environment variable (eg under 'Config Vars' on your app's Heroku settings page), or with a `.bun-version`, `runtime.bun.txt` or `runtime.txt` containing a single line for the pinned version. The version can be specified with or without a leading `v` eg `v1.0.7` or `1.0.7` or [any other Bun tags](https://github.com/oven-sh/bun/tags).
 
+Version precedence is `.bun-version` > `runtime.bun.txt` > `runtime.txt` > `BUN_VERSION`.
+
 ## Automatic detection
 
 This buildpack automatically detects Bun applications by checking for:
@@ -37,10 +39,24 @@ Optionally skip any of these steps with files named `.skip-bun-install`, `.skip-
 
 This buildpack includes several optimizations:
 
-- Caches Bun installation between deploys
+- Caches exact Bun releases between deploys (`1.4.2` and `v1.4.2` share an entry)
 - Uses `--production --frozen-lockfile` flags for reproducible and smaller installs
 - Prunes development dependencies to reduce slug size
 - Properly handles error conditions to prevent broken deploys
+
+### Bun runtime cache
+
+Exact `major.minor.patch` pins keep the Bun binary in the build cache, keyed by release, `STACK` and CPU target, so warm builds skip the installer download. Only the current runtime is kept; upgrading Bun replaces the old entry. Default, `latest`, `canary` and other floating tags always run the upstream installer. A missing or damaged cache entry falls back to a normal install.
+
+The cached binary is about 95MB, which Heroku transfers as part of the build cache. The main win is not depending on `bun.sh` and GitHub releases being reachable on every build.
+
+To run the isolated compile behavior tests (Python 3, Bash and `jq` required):
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s test -p '*_test.py' -v
+```
+
+The tests use temporary build/cache/env directories and external installer/transport fixtures; they do not download Bun or modify your installation.
 
 ## Binding to correct port
 

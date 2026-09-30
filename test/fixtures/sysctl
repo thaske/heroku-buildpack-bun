@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+if [[ $1 == -n && $2 == sysctl.proc_translated ]]; then
+  printf '%s\n' "${FIXTURE_ROSETTA:-0}"
+elif [[ $1 == -a ]]; then
+  printf 'machdep.cpu.leaf7_features: %s\n' "$FIXTURE_CPU_FLAGS"
+else
+  exit 1
+fi

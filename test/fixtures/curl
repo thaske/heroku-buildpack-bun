@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -e
+printf 'download\n' >> "$FIXTURE_TRANSPORT_LOG"
+if [[ ${FIXTURE_OFFLINE:-0} == 1 ]]; then
+  echo 'fixture transport is offline' >&2
+  exit 99
+fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -o | --output) destination="$2"; shift ;;
+  esac
+  shift
+done
+cp "$FIXTURE_DIR/installer" "$destination"
