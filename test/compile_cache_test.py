@@ -112,7 +112,7 @@ class CompileCacheTest(unittest.TestCase):
                        env=self.env, check=True)
         self.assertEqual(self.lines("runtime"), ["bunx:fixture-tool"])
 
-    def test_release_and_platform_changes_miss_without_discarding_other_entries(self):
+    def test_release_and_platform_changes_miss_and_replace_previous_entry(self):
         self.compile(self.app())
         changes = [
             ("1.4.3", {}),
@@ -131,10 +131,26 @@ class CompileCacheTest(unittest.TestCase):
                 self.assertEqual(len(self.lines("installer")), count)
                 self.compile(self.app(version), FIXTURE_OFFLINE="1", **environment)
                 self.assertEqual(len(self.lines("installer")), count)
-        self.compile(self.app(), FIXTURE_OFFLINE="1")
+                self.cache_entry()  # Publishing replaces, rather than accumulates, runtimes.
         # Rosetta's installer target is the native arm64 artifact, not x64.
         self.compile(self.app(), FIXTURE_OFFLINE="1", FIXTURE_PLATFORM="Darwin x86_64",
                      FIXTURE_ROSETTA="1")
+
+    def test_cache_hit_prunes_leftovers(self):
+        self.compile(self.app())
+        entry = self.cache_entry()
+        root = entry.parent
+        stale = [root / "v1.0.0-linux-x64-old", root / ".tmp.abandoned"]
+        for directory in stale:
+            (directory / "bin").mkdir(parents=True)
+            (directory / "bin/bun").write_text("stale")
+        installer = self.cache / "bun-installer.sh"
+        installer.write_text("stale installer")
+        self.compile(self.app(), FIXTURE_OFFLINE="1")
+        self.assertEqual(len(self.lines("installer")), 1)
+        self.assertEqual(sorted(root.iterdir()), [entry])
+        self.assertFalse(installer.exists())
+        self.assertEqual((self.cache / "bun/keep").read_text(), "dependency cache")
 
     def test_invalid_cache_falls_back_and_repairs(self):
         mutations = ("bytes", "metadata", "checksum", "missing-bun", "missing-bunx",

@@ -75,17 +75,22 @@ bun_runtime_cache_restore() {
   cp -p "$BUN_RUNTIME_CACHE_ENTRY/bin/bun" "$BIN_DIR/bun" || return 1
   ln -s bun "$BIN_DIR/bunx" || return 1
   echo "       Using cached Bun v$BUN_RUNTIME_VERSION"
+  bun_runtime_cache_prune || true
+}
+
+# One build only needs one runtime; drop older releases and leftover stages so the
+# cache Heroku transfers on every build doesn't grow with each Bun upgrade.
+bun_runtime_cache_prune() {
+  find "$BUN_RUNTIME_CACHE_ROOT" -mindepth 1 -maxdepth 1 \
+    ! -name "${BUN_RUNTIME_CACHE_ENTRY##*/}" -exec rm -rf {} +
 }
 
 bun_runtime_cache_publish() (
   [[ -n $BUN_RUNTIME_CACHE_ENTRY ]] || exit 0
-  local stage
+  local stage=
   mkdir -p "$BUN_RUNTIME_CACHE_ROOT" || exit 1
-  # A concurrent writer (or stale lock) may skip this optional optimization.
-  mkdir "$BUN_RUNTIME_CACHE_ENTRY.lock" || exit 1
-  stage=
-  trap 'if [[ -n $stage ]]; then rm -rf "$stage"; fi; rmdir "$BUN_RUNTIME_CACHE_ENTRY.lock"' EXIT
-  if bun_runtime_cache_valid "$BUN_RUNTIME_CACHE_ENTRY"; then exit 0; fi
+  # Heroku gives each build its own copy of the cache, so there is no concurrent writer.
+  trap 'if [[ -n $stage ]]; then rm -rf "$stage"; fi' EXIT
   stage=$(mktemp -d "$BUN_RUNTIME_CACHE_ROOT/.tmp.XXXXXX") || exit 1
   mkdir "$stage/bin" || exit 1
   cp -p "$BIN_DIR/bun" "$stage/bin/bun" || exit 1
@@ -96,4 +101,6 @@ bun_runtime_cache_publish() (
   # Publish only complete, validated content by rename on the same filesystem.
   rm -rf "$BUN_RUNTIME_CACHE_ENTRY" || exit 1
   mv "$stage" "$BUN_RUNTIME_CACHE_ENTRY" || exit 1
+  stage=
+  bun_runtime_cache_prune || true
 )

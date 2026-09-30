@@ -53,6 +53,8 @@ export BUN_INSTALL="$BUILD_DIR/.heroku"
 export BUN_DIR="$CACHE_DIR/bun"
 if [[ -n $CACHE_DIR ]]; then
   mkdir -p "$BUN_DIR" || echo "       Dependency cache directory unavailable"
+  # Earlier versions of this buildpack kept the installer in the cache.
+  rm -f "$CACHE_DIR/bun-installer.sh" || true
 fi
 
 bun_runtime_cache_init
@@ -61,13 +63,13 @@ if ! bun_runtime_cache_restore; then
   INSTALLER_DIR=$(mktemp -d "${TMPDIR:-/tmp}/heroku-bun-installer.XXXXXX")
   trap 'rm -rf "$INSTALLER_DIR"' EXIT
   INSTALLER_PATH="$INSTALLER_DIR/install.sh"
-  echo "       Downloading Bun installer" | indent
+  echo "Downloading Bun installer" | indent
   if ! curl -fsSL --retry-connrefused --retry 3 https://bun.sh/install -o "$INSTALLER_PATH"; then
-    echo "       Failed to download Bun installer" | indent
+    echo "Failed to download Bun installer" | indent
     exit 1
   fi
 
-  echo "       Running installer" | indent
+  echo "Running installer" | indent
   bash "$INSTALLER_PATH" $BUN_INSTALL_VERSION
   # Upstream completions may create an absolute bunx link (or skip it if on PATH).
   # Keep the runtime relocatable, independent of both the cache and build path.
@@ -100,26 +102,26 @@ if [ -f package.json ]; then
   # Download dependencies
   if [[ ! -f .skip-bun-install ]]; then
     echo "-----> Installing dependencies"
-    bun install --production --frozen-lockfile || { echo "       Failed to install dependencies" | indent; exit 1; }
+    bun install --production --frozen-lockfile || { echo "Failed to install dependencies" | indent; exit 1; }
   fi
 
   has_heroku_prebuild_script=$(has_script "package.json" "heroku-prebuild")
   if [[ "$has_heroku_prebuild_script" == "true" && ! -f .skip-bun-heroku-prebuild ]]; then
     echo "-----> Running Heroku prebuild script"
-    bun run heroku-prebuild || { echo "       Failed to run heroku-prebuild" | indent; exit 1; }
+    bun run heroku-prebuild || { echo "Failed to run heroku-prebuild" | indent; exit 1; }
   fi
 
   has_build_script=$(has_script "package.json" "build")
   if [[ "$has_build_script" == "true" && ! -f .skip-bun-build ]]; then
     echo "-----> Building application"
-    bun run build || { echo "       Failed to build application" | indent; exit 1; }
-    echo "       Done building application" | indent
+    bun run build || { echo "Failed to build application" | indent; exit 1; }
+    echo "Done building application" | indent
   fi
 
   has_heroku_postbuild_script=$(has_script "package.json" "heroku-postbuild")
   if [[ "$has_heroku_postbuild_script" == "true" && ! -f .skip-bun-heroku-postbuild ]]; then
     echo "-----> Running Heroku postbuild script"
-    bun run heroku-postbuild || { echo "       Failed to run heroku-postbuild" | indent; exit 1; }
+    bun run heroku-postbuild || { echo "Failed to run heroku-postbuild" | indent; exit 1; }
   fi
 else
   echo "-----> No package.json found. Skipping dependency installation."

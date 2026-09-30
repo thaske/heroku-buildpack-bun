@@ -46,9 +46,9 @@ This buildpack includes several optimizations:
 
 ### Bun runtime cache
 
-Exact `major.minor.patch` pins use a buildpack-owned `$CACHE_DIR/heroku-buildpack-bun-runtime` directory, separate from the dependency cache at `$CACHE_DIR/bun`. Entries are keyed by release, Heroku `STACK`, OS/architecture and the installer's CPU artifact flavor (including baseline and musl variants). A hit validates the metadata, SHA-256 checksum, `bunx` link and the cached executable's `--version` before copying only `bun` and a relative `bunx` link into the app. It skips both installer download and execution; other buildpacks' bin files are left alone.
+Exact `major.minor.patch` pins keep the Bun binary in the build cache, keyed by release, `STACK` and CPU target, so warm builds skip the installer download. Only the current runtime is kept; upgrading Bun replaces the old entry. Default, `latest`, `canary` and other floating tags always run the upstream installer. A missing or damaged cache entry falls back to a normal install.
 
-Default/latest and other nonexact or mutable tags always run the upstream installer. Missing `STACK` or an unrecognized platform also bypasses runtime caching. Missing, incompatible or damaged entries fall back to installation. Cache publication is atomic, and an unavailable or unwritable cache does not fail an otherwise valid runtime installation. These checks detect cache damage; they are not upstream release signature verification. No runtime cache metadata is included in the slug.
+The cached binary is about 95MB, which Heroku transfers as part of the build cache. The main win is not depending on `bun.sh` and GitHub releases being reachable on every build.
 
 To run the isolated compile behavior tests (Python 3, Bash and `jq` required):
 
