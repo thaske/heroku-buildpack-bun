@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+printf '%s\n' "${1:-latest}" >> "$FIXTURE_INSTALLER_LOG"
+case "${1:-}" in
+  bun-v[0-9]*) version="${1#bun-v}" ;;
+  *) version="$FIXTURE_RELEASE" ;;
+esac
+mkdir -p "$BUN_INSTALL/bin"
+{
+  printf '#!/usr/bin/env bash\nversion=%q\n' "$version"
+  cat "$FIXTURE_DIR/runtime"
+} > "$BUN_INSTALL/bin/bun"
+chmod +x "$BUN_INSTALL/bin/bun"
+# Upstream's completions step creates an absolute link to the executable.
+ln -sf "$BUN_INSTALL/bin/bun" "$BUN_INSTALL/bin/bunx"
